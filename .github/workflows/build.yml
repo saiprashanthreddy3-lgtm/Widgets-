@@ -22,14 +22,12 @@ jobs:
         run: |
           mkdir -p work
           unzip -q project.zip -d work
-          ls -la work
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build debug APK
         run: |
-          # Find where build.gradle.kts is located inside work/ and build from that directory
           PROJECT_DIR=$(find work -name "build.gradle.kts" -maxdepth 3 | xargs dirname)
           echo "Found project directory at: $PROJECT_DIR"
           gradle -p "$PROJECT_DIR" assembleDebug --no-daemon
