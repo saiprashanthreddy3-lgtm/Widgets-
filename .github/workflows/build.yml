@@ -16,13 +16,21 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      # Avoid installing the obsolete Android SDK "tools" package.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "latest"
+          packages: |
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
 
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.7
+          gradle-version: "8.7"
 
       - name: Unzip project
         run: unzip -q project.zip -d work
@@ -30,7 +38,15 @@ jobs:
       - name: Build debug APK
         run: gradle -p work/GlassWidgets assembleDebug --no-daemon
 
-      - name: Publish APK to Releases
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GlassWidgets-debug-apk
+          path: work/GlassWidgets/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Publish APK to GitHub Release
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -38,4 +54,7 @@ jobs:
           gh release create "build-${{ github.run_number }}" GlassWidgets.apk \
             --repo "${{ github.repository }}" \
             --title "Glass Widgets build ${{ github.run_number }}" \
-            --notes "Install GlassWidgets.apk on your phone."
+            --notes "Install GlassWidgets.apk on your phone." || {
+              echo "Release creation failed. The APK is still available in the workflow artifacts."
+              exit 1
+            }
