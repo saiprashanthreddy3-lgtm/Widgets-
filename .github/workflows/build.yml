@@ -18,15 +18,12 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # Avoid installing the obsolete Android SDK "tools" package.
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: "latest"
-          packages: |
-            platform-tools
-            platforms;android-34
-            build-tools;34.0.0
+          # This action expects a comma-separated list, not a multiline list.
+          packages: "platform-tools,platforms;android-34,build-tools;34.0.0"
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -35,26 +32,25 @@ jobs:
       - name: Unzip project
         run: unzip -q project.zip -d work
 
+      - name: Locate Gradle project
+        id: project
+        shell: bash
+        run: |
+          PROJECT_DIR="$(find work -name settings.gradle -o -name settings.gradle.kts | head -n 1 | xargs -r dirname)"
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Could not find settings.gradle or settings.gradle.kts inside project.zip"
+            find work -maxdepth 4 -type f | head -n 100
+            exit 1
+          fi
+          echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+          echo "Gradle project: $PROJECT_DIR"
+
       - name: Build debug APK
-        run: gradle -p work/GlassWidgets assembleDebug --no-daemon
+        run: gradle -p "${{ steps.project.outputs.dir }}" assembleDebug --no-daemon
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: GlassWidgets-debug-apk
-          path: work/GlassWidgets/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ steps.project.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
-      - name: Publish APK to GitHub Release
-        if: success()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cp work/GlassWidgets/app/build/outputs/apk/debug/app-debug.apk GlassWidgets.apk
-          gh release create "build-${{ github.run_number }}" GlassWidgets.apk \
-            --repo "${{ github.repository }}" \
-            --title "Glass Widgets build ${{ github.run_number }}" \
-            --notes "Install GlassWidgets.apk on your phone." || {
-              echo "Release creation failed. The APK is still available in the workflow artifacts."
-              exit 1
-            }
