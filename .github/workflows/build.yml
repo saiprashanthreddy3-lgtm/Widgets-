@@ -18,17 +18,16 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
-
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.7
-
       - name: Unzip project
         run: unzip -q project.zip -d work
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Build debug APK
-        run: gradle -p work/GlassWidgets assembleDebug --no-daemon
+        run: |
+          chmod +x work/GlassWidgets/gradlew || true
+          gradle -p work/GlassWidgets assembleDebug --no-daemon
 
       - name: Publish APK to Releases
         env:
@@ -38,5 +37,6 @@ jobs:
           gh release create "build-${{ github.run_number }}" GlassWidgets.apk \
             --repo "${{ github.repository }}" \
             --title "Glass Widgets build ${{ github.run_number }}" \
-            --notes "Install GlassWidgets.apk on your phone."
+            --notes "Install GlassWidgets.apk on your phone." \
+            --clobber
             
