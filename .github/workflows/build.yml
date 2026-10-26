@@ -40,9 +40,15 @@ jobs:
         run: |
           APK_PATH=$(find work -name "app-debug.apk" | head -n 1)
           cp "$APK_PATH" GlassWidgets.apk
-          gh release create "build-${{ github.run_number }}" GlassWidgets.apk \
+          
+          TAG="build-${{ github.run_number }}"
+          
+          # Clean up any existing tag/release conflicts
+          gh release delete "$TAG" --repo "${{ github.repository }}" --yes || true
+          git push origin --delete "$TAG" || true
+
+          # Create release and upload APK
+          gh release create "$TAG" GlassWidgets.apk \
             --repo "${{ github.repository }}" \
             --title "Glass Widgets build ${{ github.run_number }}" \
-            --notes "Install GlassWidgets.apk on your phone." \
-            --clobber
-            
+            --notes "Install GlassWidgets.apk on your phone."
